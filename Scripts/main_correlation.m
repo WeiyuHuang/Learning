@@ -1,4 +1,4 @@
-function [ r, p ] = main_correlation( dataset, difficulty, diff_rate, measure, parameter )
+function [ r, p ] = main_correlation( dataset, difficulty, diff_rate, measure, parameter, permute )
 %The all-in function to compute the correlation of a specific measure
 %MEASURE with learning rates on the first day for all subjects (good
 %subjects if the DATASET is the 3day dataset), and of a specific DIFFICULTY
@@ -26,6 +26,13 @@ function [ r, p ] = main_correlation( dataset, difficulty, diff_rate, measure, p
 %                                     weight in measures 4,5
 %                         .r        - tolerance in entropy measures 6,7
 %                                     (typically 0.2 * std)
+%         permute    - flag for permutation test (either subject are 
+%                      permutated or for each subject, her activity 
+%                      profiles are permutated)
+%                         0 or undefined if not permuted
+%                         .learningOrder  - 1 if subjects' learning rates
+%                                           permuted 
+%                         .timeOrder      - rng seed for time order
 % OUTPUT: r          - correlation between measures and learning 
 %         p          - p-values between measures and learning
 %
@@ -43,6 +50,10 @@ function [ r, p ] = main_correlation( dataset, difficulty, diff_rate, measure, p
 %       2. temporal 0 meaning default
 %       3. if r is not defined, 0.2 * std is the most commonly used one
 %
+if ~exist('permute', 'var')
+    permute.learningOrder = 0;
+end
+
 switch measure
     case 1
         parameter.alpha = -1; parameter.r = -1;
@@ -95,10 +106,10 @@ for P_idx = 1:P
         switch dataset
             case {'3day', 1}
                 [r(P_idx, D_idx), p(P_idx, D_idx)] = ...
-                    compute_correlation_3day(diff_rate, measure, crt);
+                    compute_correlation_3day(diff_rate, measure, crt, permute.learningOrder);
             case {'6week', 2}
                 [r(P_idx, D_idx), p(P_idx, D_idx)] = ...
-                    compute_correlation_6week(difficulty(D_idx), diff_rate, measure, crt);
+                    compute_correlation_6week(difficulty(D_idx), diff_rate, measure, crt, permute.learningOrder);
         end
     end
 end

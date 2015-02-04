@@ -1,7 +1,8 @@
-function [ r, p ] = compute_correlation_3day(diff_rate, measure, crt)
+function [ r, p ] = compute_correlation_3day(diff_rate, measure, crt, permute)
 %Compute the correlaiton for 3day learning set for the measure MEASURE with
 %the specific parameter defined in CRT and brain signal diffused with
-%diffusion rate DIFF_RATE.
+%diffusion rate DIFF_RATE. Here we do a permutation test such that the
+%learning rate for subjects are permuted wrt random seed PERMUTE.
 %
 %  INPUT: diff_rate  - diffusion rate, 0 if not diffused
 %         measure    - a scalar integer 1 - 7 corresponding to
@@ -21,6 +22,8 @@ function [ r, p ] = compute_correlation_3day(diff_rate, measure, crt)
 %                                     weight in measures 4,5
 %                         .r        - tolerance in entropy measures 6,7
 %                                     (typically 0.2 * std)
+%         permute    - 1 if subjects' learnign rates permuted with 
+%                      current random generator
 % OUTPUT: r          - correlation between measures and learning 
 %         p          - p-values between measures and learning
 %
@@ -35,7 +38,7 @@ function [ r, p ] = compute_correlation_3day(diff_rate, measure, crt)
 %--------------------------------------------------------------------%
 
 load('../../learning_v1_Data/3_day_learning/behavioral_data.mat');
-        learning = -mvt_3sess(:, 1); clear mvt_3sess;
+learning = -mvt_3sess(:, 1); clear mvt_3sess;
 
 % Initializing storage space for each subject.
 %
@@ -315,7 +318,17 @@ end % for subject_id
 %---------------------- 3. compute correlation ----------------------%
 %--------------------------------------------------------------------%
 
-[R, P] = corrcoef(measure_results, learning);
+% Want to do this wrt to the desired subject permutation.
+%
+if ~permute
+    order = 1:length(learning);
+else 
+    order = randperm(length(learning));
+end 
+
+% Compute and output correlation.
+%
+[R, P] = corrcoef(measure_results, learning(order));
 r = R(1, 2); p = P(1, 2);
 
 end
