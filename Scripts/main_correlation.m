@@ -1,4 +1,4 @@
-function [ r, p ] = main_correlation( dataset, difficulty, diff_rate, measure, parameter, permute )
+function [ r, p ] = main_correlation( dataset, diff_rate, measure, parameter, permute )
 %The all-in function to compute the correlation of a specific measure
 %MEASURE with learning rates on the first day for all subjects (good
 %subjects if the DATASET is the 3day dataset), and of a specific DIFFICULTY
@@ -6,9 +6,7 @@ function [ r, p ] = main_correlation( dataset, difficulty, diff_rate, measure, p
 %DIFFUSION_RATE are defined in structural format in PARAMETER.
 %
 %  INPUT: dataset    - '3day' (1) or '6week' (2)
-%         difficulty - 1 for ext or 2 for mod or 3 for min for '6week'
-%                      dataset, or vector with values 1 - 3
-%         diff_rate  - diffusion rate, 0 if not diffused
+%         diff_rate  - diffusion rate, 0 if not diffused, may be a vector
 %         measure    - a scalar integer 1 - 7 corresponding to
 %                         1. number of switches
 %                         2. number of switches greater than a threshold
@@ -38,7 +36,8 @@ function [ r, p ] = main_correlation( dataset, difficulty, diff_rate, measure, p
 %
 %---------------------------------------------------------------------
 % coded by Weiyu Huang,  whuang@seas.upenn.edu
-% Ver 1 : Jan 14, 2014
+% Ver 1  : Jan 14, 2014
+% Ver 1.1: Feb 4, 2014
 %---------------------------------------------------------------------
 
 
@@ -51,7 +50,7 @@ function [ r, p ] = main_correlation( dataset, difficulty, diff_rate, measure, p
 %       3. if r is not defined, 0.2 * std is the most commonly used one
 %
 if ~exist('permute', 'var')
-    permute.learningOrder = 0;
+    permute = 0;
 end
 
 switch measure
@@ -78,41 +77,42 @@ end
 %--------------------- 2. compute correlations ----------------------%
 %--------------------------------------------------------------------%
 
-% Compute the number of parameter combinations we want to have (number of
-% rows P in the result table) and number of columns D
-%
+% Call subroutines.
+N_diffrate = numel(diff_rate);
 N_temporal = numel(parameter.temporal);
 N_numClust = numel(parameter.numClust);
 N_alpha = numel(parameter.alpha);
 N_r = numel(parameter.r);
-P = N_temporal * N_numClust * N_alpha * N_r;
-D = numel(difficulty);
-r = zeros(P, D); p = zeros(P, D);
+P = N_diffrate * N_temporal * N_numClust * N_alpha * N_r;
+switch dataset
+    case {'3day', 1}
+        r = zeros(P, 1);
+        p = zeros(P, 1);
+    case {'6week', 2}
+        r = zeros(P, 3);
+        p = zeros(P, 3);
+end
 
 % Loop over the table and fill in one entry at each time by calling the
 % subroutine
 %
 for P_idx = 1:P
-    for D_idx = 1:D
-        % P_idx are ordered first by r, then by alpha, then numClust,
-        % finally temporal
-        %
-        crt.r = parameter.r( mod(P_idx - 1, N_r) + 1 );
-        crt.alpha = parameter.alpha( floor( mod(P_idx - 1, N_r * N_alpha) / N_r ) + 1 );
-        crt.numClust = parameter.numClust( floor( mod(P_idx - 1, ...
-            N_r * N_alpha * N_numClust) / (N_r * N_alpha) ) + 1 );
-        crt.temporal = parameter.temporal( floor( (P_idx - 1) / ...
-            (N_r * N_alpha * N_numClust) ) + 1 );
-        switch dataset
-            case {'3day', 1}
-                [r(P_idx, D_idx), p(P_idx, D_idx)] = ...
-                    compute_correlation_3day(diff_rate, measure, crt, permute.learningOrder);
-            case {'6week', 2}
-                [r(P_idx, D_idx), p(P_idx, D_idx)] = ...
-                    compute_correlation_6week(difficulty(D_idx), diff_rate, measure, crt, permute.learningOrder);
-        end
+    % P_idx are ordered first by r, then by alpha, then numClust,
+    % then temporal, finally diffrate
+    %
+    crt.r = parameter.r( mod(P_idx - 1, N_r) + 1 );
+    crt.alpha = parameter.alpha( floor( mod(P_idx - 1, N_r * N_alpha) / N_r ) + 1 );
+    crt.numClust = parameter.numClust( floor( mod(P_idx - 1, ...
+        N_r * N_alpha * N_numClust) / (N_r * N_alpha) ) + 1 );
+    crt.temporal = parameter.temporal( floor( mod(P_idx - 1, ...
+        N_r * N_alpha * N_numClust * N_temporal) / (N_r * N_alpha * N_numClust) ) + 1 );
+    diff_rate_crt = diff_rate( floor( (P_idx - 1) / (N_r * N_alpha * N_numClust * N_temporal) ) + 1 );
+    switch dataset
+        case {'3day', 1}
+            [r(P_idx, :), p(P_idx, :)] = compute_correlation_3day(diff_rate_crt, measure, crt, permute);
+        case {'6week', 2}
+            [r(P_idx, :), p(P_idx, :)] = compute_correlation_6week(diff_rate_crt, measure, crt, permute);
     end
 end
 
 end
-
